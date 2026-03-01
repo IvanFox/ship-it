@@ -9,27 +9,27 @@ A Raycast extension that deploys services via `sdc` CLI. Uses a list-driven navi
 ## Commands
 
 ```bash
-npm run dev       # Load extension in Raycast with hot-reload
-npm run build     # Production build (ray build)
-npm run lint      # Lint (ray lint)
-npm run fix-lint  # Auto-fix lint issues
+make install      # Install dependencies and build for Raycast
+make dev          # Load extension in Raycast with hot-reload
+make build        # Production build (ray build)
+make lint         # Lint (ray lint)
+make fix-lint     # Auto-fix lint issues
+make test         # Run tests (vitest)
 ```
-
-No test framework is configured.
 
 ## Architecture
 
 One Raycast command (**deploy**) with three sequential views:
 
 1. **Repo List** (`src/deploy.tsx`) — Searchable list of repositories with two sections: Pinned and All Repositories. `Cmd+D` toggles pin. Entry point wrapped with `withAccessToken(linearOAuth)`.
-2. **Service List** (`src/service-list.tsx`) — Lists discovered services for the selected repo. `Cmd+E` pushes a rename form (service override). `Cmd+Shift+E` resets override to original name.
-3. **Deploy Form** (`src/deploy-form.tsx`) — Minimal form with only a Linear ticket dropdown. Deploy targets are Action Panel actions: `Enter` = All Environments, `Cmd+1-4` = individual stages.
+2. **Service List** (`src/service-list.tsx`) — Lists discovered services for the selected repo. Quick deploy actions: `Cmd+1` deploys to unstable, `Cmd+2` deploys to staging (both fire immediately, no ticket needed). `Enter` pushes to Deploy Form for ticket-required targets. `Cmd+E` pushes a rename form (service override). `Cmd+Shift+E` resets override to original name.
+3. **Deploy Form** (`src/deploy-form.tsx`) — Form with a mandatory Linear ticket dropdown. Deploy targets: `Enter` = All Environments, `Cmd+3` = Sandbox, `Cmd+4` = Live. Exports `executeDeploy()` shared by both the form and service list quick actions. After deploy completes (or fails), navigates to a Detail view showing full sdc stdout.
 
 Shared logic lives in `src/lib/`:
 - `services.ts` — Scans `{repo}/services/` to discover service names. Two-level walk: if a subdirectory has children, each child is a service; otherwise the subdirectory itself is. Falls back to repo name. Applies LocalStorage overrides.
-- `sdc.ts` — Wraps `sdc -d -s {service} -stage {stage} -ignore-tests -y -t {ticket}`. Parses PR URLs from stdout via regex. Also handles `git checkout main && git pull`.
+- `sdc.ts` — Wraps `sdc -d -s {service} -stage {stage} -ignore-tests -y [-t {ticket}]`. Ticket flag is omitted for unstable/staging quick deploys. Parses PR URLs from stdout via regex. Also handles `git checkout main && git pull`.
 - `linear.ts` — `OAuthService.linear()` with `read` scope. Fetches up to 50 assigned non-completed tickets. Caches the LinearClient instance. Returns empty array on auth failure.
-- `slack.ts` — Extracts PR URLs from sandbox/live deploy results, joins with newlines.
+- `slack.ts` — Builds a Slack message with service name header and bullet-pointed PR URLs from sandbox/live deploy results.
 - `storage.ts` — LocalStorage CRUD for service name overrides (`override:{repoName}/{originalServiceName}`) and pinned repos (`pinned-repos` as JSON string array).
 
 Types and stage constants are in `src/types.ts`.
@@ -37,9 +37,19 @@ Types and stage constants are in `src/types.ts`.
 ## Key Behaviors
 
 **Deploy targets and git strategy:**
-- `unstable` / `staging` — deploy from current branch, no git operations
-- `sandbox` / `live` — `git checkout main && git pull` before deploying
-- `all` — checkout main + pull, then deploy unstable → staging → sandbox → live sequentially
+- `unstable` / `staging` — deploy from current branch, no git operations, no ticket required
+- `sandbox` / `live` — `git checkout main && git pull` before deploying, ticket required
+- `all` — checkout main + pull, then deploy unstable → staging → sandbox → live sequentially, ticket required
+
+**Deploy output:** After every deploy (success or failure), a Detail view shows the full sdc stdout per stage. On failure, completed stages are shown along with the error.
+
+**Slack message format:**
+```
+Deploying service-name
+
+• https://github.com/org/repo/pull/123
+• https://github.com/org/repo/pull/124
+```
 
 **Service discovery ignore list:** `common` and `pkg` are always skipped. Additional directories configurable via the `ignoredDirectories` preference (comma-separated).
 
