@@ -17,15 +17,29 @@ describe("buildSlackMessage", () => {
 
   it("returns single URL for one sandbox PR", () => {
     const results: DeployResult[] = [
-      { stage: "sandbox", prUrl: "https://github.com/org/repo/pull/1", stdout: "" },
+      {
+        stage: "sandbox",
+        prUrl: "https://github.com/org/repo/pull/1",
+        stdout: "",
+      },
     ];
-    expect(buildSlackMessage(results)).toBe("https://github.com/org/repo/pull/1");
+    expect(buildSlackMessage(results)).toBe(
+      "https://github.com/org/repo/pull/1",
+    );
   });
 
   it("returns newline-separated URLs for sandbox + live PRs", () => {
     const results: DeployResult[] = [
-      { stage: "sandbox", prUrl: "https://github.com/org/repo/pull/1", stdout: "" },
-      { stage: "live", prUrl: "https://github.com/org/repo/pull/2", stdout: "" },
+      {
+        stage: "sandbox",
+        prUrl: "https://github.com/org/repo/pull/1",
+        stdout: "",
+      },
+      {
+        stage: "live",
+        prUrl: "https://github.com/org/repo/pull/2",
+        stdout: "",
+      },
     ];
     expect(buildSlackMessage(results)).toBe(
       "https://github.com/org/repo/pull/1\nhttps://github.com/org/repo/pull/2",
@@ -34,10 +48,24 @@ describe("buildSlackMessage", () => {
 
   it("ignores unstable/staging results even if they have URLs", () => {
     const results: DeployResult[] = [
-      { stage: "unstable", prUrl: "https://github.com/org/repo/pull/10", stdout: "" },
-      { stage: "staging", prUrl: "https://github.com/org/repo/pull/11", stdout: "" },
-      { stage: "sandbox", prUrl: "https://github.com/org/repo/pull/12", stdout: "" },
+      {
+        stage: "unstable",
+        prUrl: "https://github.com/org/repo/pull/10",
+        stdout: "",
+      },
+      {
+        stage: "staging",
+        prUrl: "https://github.com/org/repo/pull/11",
+        stdout: "",
+      },
+      {
+        stage: "sandbox",
+        prUrl: "https://github.com/org/repo/pull/12",
+        stdout: "",
+      },
     ];
-    expect(buildSlackMessage(results)).toBe("https://github.com/org/repo/pull/12");
+    expect(buildSlackMessage(results)).toBe(
+      "https://github.com/org/repo/pull/12",
+    );
   });
 });

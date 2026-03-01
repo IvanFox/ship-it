@@ -13,7 +13,11 @@ function getSdcPath(): string {
   return prefs.sdcPath?.trim() || "sdc";
 }
 
-async function execInRepo(command: string, args: string[], repoPath: string): Promise<{ stdout: string }> {
+async function execInRepo(
+  command: string,
+  args: string[],
+  repoPath: string,
+): Promise<{ stdout: string }> {
   return execFileAsync(command, args, {
     cwd: repoPath,
     env: { ...process.env, PATH: SHELL_PATH },

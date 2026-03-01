@@ -113,7 +113,8 @@ describe("listRepositories", () => {
   it("lists directories and skips hidden dirs", () => {
     mockReaddirSync.mockReturnValue([".git", "repo-a", "repo-b", ".hidden"]);
     mockStatSync.mockImplementation((fullPath: string) => ({
-      isDirectory: () => !fullPath.includes(".git") && !fullPath.includes(".hidden"),
+      isDirectory: () =>
+        !fullPath.includes(".git") && !fullPath.includes(".hidden"),
     }));
 
     const repos = listRepositories("/projects");
