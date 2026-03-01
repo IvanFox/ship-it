@@ -66,10 +66,10 @@
     "minimatch": ">=9.0.7"
   },
   "scripts": {
-    "build": "npx ray build",
-    "dev": "npx ray develop",
-    "fix-lint": "npx ray lint --fix",
-    "lint": "npx ray lint",
+    "build": "npx @raycast/api@latest build",
+    "dev": "npx @raycast/api@latest develop",
+    "fix-lint": "npx @raycast/api@latest lint --fix",
+    "lint": "npx @raycast/api@latest lint",
     "test": "vitest run",
     "test:watch": "vitest"
   }
