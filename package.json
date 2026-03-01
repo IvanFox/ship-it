@@ -15,12 +15,6 @@
       "title": "Deploy Service",
       "description": "Deploy a service to one or all environments",
       "mode": "view"
-    },
-    {
-      "name": "manage-overrides",
-      "title": "Manage Service Overrides",
-      "description": "View and edit service name overrides per repository",
-      "mode": "view"
     }
   ],
   "preferences": [

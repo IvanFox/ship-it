@@ -29,6 +29,32 @@ export interface OverrideEntry {
   key: string;
 }
 
+const PINNED_REPOS_KEY = "pinned-repos";
+
+export async function getPinnedRepos(): Promise<string[]> {
+  const raw = await LocalStorage.getItem<string>(PINNED_REPOS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export async function togglePinRepo(repoName: string): Promise<boolean> {
+  const pinned = await getPinnedRepos();
+  const index = pinned.indexOf(repoName);
+  if (index >= 0) {
+    pinned.splice(index, 1);
+    await LocalStorage.setItem(PINNED_REPOS_KEY, JSON.stringify(pinned));
+    return false;
+  } else {
+    pinned.push(repoName);
+    await LocalStorage.setItem(PINNED_REPOS_KEY, JSON.stringify(pinned));
+    return true;
+  }
+}
+
 export async function getAllOverrides(): Promise<OverrideEntry[]> {
   const all = await LocalStorage.allItems();
   const entries: OverrideEntry[] = [];
