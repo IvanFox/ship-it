@@ -155,15 +155,30 @@ export function DeployForm({
 
   const { data: tickets = [] } = usePromise(fetchAssignedTickets);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [ticketSource, setTicketSource] = useState("assigned");
+  const [manualTicketError, setManualTicketError] = useState<string | undefined>();
 
-  async function handleDeploy(target: DeployTarget, ticket: string) {
-    if (!ticket.trim()) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Ticket is required",
-      });
-      return;
+  const MANUAL_ENTRY = "__manual__";
+  const isManual = ticketSource === MANUAL_ENTRY;
+  const TICKET_PATTERN = /^[A-Za-z]{1,5}-\d{1,6}$/;
+
+  function resolveTicket(values: { ticket: string; manualTicket?: string }): string | null {
+    const raw = isManual ? (values.manualTicket ?? "") : values.ticket;
+    const trimmed = raw.trim().toUpperCase();
+    if (!trimmed) {
+      showToast({ style: Toast.Style.Failure, title: "Ticket is required" });
+      return null;
     }
+    if (!TICKET_PATTERN.test(trimmed)) {
+      showToast({ style: Toast.Style.Failure, title: "Invalid ticket format", message: "Expected format: ABC-123" });
+      return null;
+    }
+    return trimmed;
+  }
+
+  async function handleDeploy(target: DeployTarget, values: { ticket: string; manualTicket?: string }) {
+    const ticket = resolveTicket(values);
+    if (!ticket) return;
 
     setIsDeploying(true);
     try {
@@ -171,6 +186,13 @@ export function DeployForm({
     } finally {
       setIsDeploying(false);
     }
+  }
+
+  function validateManualTicket(value: string | undefined): string | undefined {
+    const v = (value ?? "").trim();
+    if (!v) return "Ticket is required";
+    if (!TICKET_PATTERN.test(v)) return "Expected format: ABC-123 (up to 5 letters, up to 6 digits)";
+    return undefined;
   }
 
   return (
@@ -181,22 +203,22 @@ export function DeployForm({
         <ActionPanel>
           <Action.SubmitForm
             title="Deploy to All Environments"
-            onSubmit={(values: { ticket: string }) =>
-              handleDeploy("all", values.ticket)
+            onSubmit={(values: { ticket: string; manualTicket?: string }) =>
+              handleDeploy("all", values)
             }
           />
           <Action.SubmitForm
             title="Deploy to Sandbox"
             shortcut={{ modifiers: ["cmd"], key: "3" }}
-            onSubmit={(values: { ticket: string }) =>
-              handleDeploy("sandbox", values.ticket)
+            onSubmit={(values: { ticket: string; manualTicket?: string }) =>
+              handleDeploy("sandbox", values)
             }
           />
           <Action.SubmitForm
             title="Deploy to Live"
             shortcut={{ modifiers: ["cmd"], key: "4" }}
-            onSubmit={(values: { ticket: string }) =>
-              handleDeploy("live", values.ticket)
+            onSubmit={(values: { ticket: string; manualTicket?: string }) =>
+              handleDeploy("live", values)
             }
           />
         </ActionPanel>
@@ -207,7 +229,11 @@ export function DeployForm({
         text={`${repoName} / ${service.name}`}
       />
       <Form.Separator />
-      <Form.Dropdown id="ticket" title="Linear Ticket" storeValue>
+      <Form.Dropdown
+        id="ticket"
+        title="Linear Ticket"
+        onChange={setTicketSource}
+      >
         {tickets.map((t: LinearTicket) => (
           <Form.Dropdown.Item
             key={t.id}
@@ -215,7 +241,22 @@ export function DeployForm({
             title={`${t.identifier} — ${t.title}`}
           />
         ))}
+        <Form.Dropdown.Item
+          key={MANUAL_ENTRY}
+          value={MANUAL_ENTRY}
+          title="Enter manually…"
+        />
       </Form.Dropdown>
+      {isManual && (
+        <Form.TextField
+          id="manualTicket"
+          title="Ticket ID"
+          placeholder="ENG-123"
+          error={manualTicketError}
+          onChange={(v) => setManualTicketError(validateManualTicket(v))}
+          onBlur={(e) => setManualTicketError(validateManualTicket(e.target.value ?? ""))}
+        />
+      )}
     </Form>
   );
 }
