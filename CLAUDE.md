@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A Raycast extension that deploys services via `sdc` CLI. Provides a form UI for selecting a repo, service, Linear ticket, and deploy target, then orchestrates git operations + sdc invocations and copies PR links to clipboard.
+A Raycast extension that deploys services via `sdc` CLI. Uses a list-driven navigation flow (Repo List → Service List → Deploy Form) to orchestrate git operations + sdc invocations and copies PR links to clipboard.
 
 ## Commands
 
@@ -19,16 +19,18 @@ No test framework is configured.
 
 ## Architecture
 
-Two Raycast commands:
-- **deploy** (`src/deploy.tsx`) — Form UI that orchestrates the full deploy flow
-- **manage-overrides** (`src/manage-overrides.tsx`) — List UI for managing service name overrides
+One Raycast command (**deploy**) with three sequential views:
+
+1. **Repo List** (`src/deploy.tsx`) — Searchable list of repositories with two sections: Pinned and All Repositories. `Cmd+D` toggles pin. Entry point wrapped with `withAccessToken(linearOAuth)`.
+2. **Service List** (`src/service-list.tsx`) — Lists discovered services for the selected repo. `Cmd+E` pushes a rename form (service override). `Cmd+Shift+E` resets override to original name.
+3. **Deploy Form** (`src/deploy-form.tsx`) — Minimal form with only a Linear ticket dropdown. Deploy targets are Action Panel actions: `Enter` = All Environments, `Cmd+1-4` = individual stages.
 
 Shared logic lives in `src/lib/`:
 - `services.ts` — Scans `{repo}/services/` to discover service names. Two-level walk: if a subdirectory has children, each child is a service; otherwise the subdirectory itself is. Falls back to repo name. Applies LocalStorage overrides.
 - `sdc.ts` — Wraps `sdc -d -s {service} -stage {stage} -ignore-tests -y -t {ticket}`. Parses PR URLs from stdout via regex. Also handles `git checkout main && git pull`.
 - `linear.ts` — `OAuthService.linear()` with `read` scope. Fetches up to 50 assigned non-completed tickets. Caches the LinearClient instance. Returns empty array on auth failure.
 - `slack.ts` — Extracts PR URLs from sandbox/live deploy results, joins with newlines.
-- `storage.ts` — LocalStorage CRUD for service name overrides. Key format: `override:{repoName}/{originalServiceName}`.
+- `storage.ts` — LocalStorage CRUD for service name overrides (`override:{repoName}/{originalServiceName}`) and pinned repos (`pinned-repos` as JSON string array).
 
 Types and stage constants are in `src/types.ts`.
 
