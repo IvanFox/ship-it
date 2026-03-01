@@ -1,0 +1,73 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "ship-it",
+  "title": "Ship It",
+  "description": "Deploy services via sdc with auto-discovery, Linear ticket integration, and Slack message generation",
+  "icon": "command-icon.png",
+  "author": "team",
+  "categories": [
+    "Developer Tools"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "deploy",
+      "title": "Deploy Service",
+      "description": "Deploy a service to one or all environments",
+      "mode": "view"
+    },
+    {
+      "name": "manage-overrides",
+      "title": "Manage Service Overrides",
+      "description": "View and edit service name overrides per repository",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "projectsDirectory",
+      "title": "Projects Directory",
+      "description": "Root directory containing all repository clones",
+      "type": "directory",
+      "required": true
+    },
+    {
+      "name": "ignoredDirectories",
+      "title": "Ignored Directories",
+      "description": "Comma-separated directory names to skip in service discovery (common and pkg are always ignored)",
+      "type": "textfield",
+      "required": false,
+      "default": ""
+    },
+    {
+      "name": "sdcPath",
+      "title": "sdc Binary Path",
+      "description": "Absolute path to the sdc binary. Leave empty to use PATH lookup.",
+      "type": "textfield",
+      "required": false,
+      "default": ""
+    }
+  ],
+  "dependencies": {
+    "@linear/sdk": "^29.0.0",
+    "@raycast/api": "^1.104.1",
+    "@raycast/utils": "^1.19.1"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.18"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
+}

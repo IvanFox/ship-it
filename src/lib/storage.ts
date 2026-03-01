@@ -1,0 +1,51 @@
+import { LocalStorage } from "@raycast/api";
+
+const OVERRIDE_PREFIX = "override:";
+
+function overrideKey(repoName: string, originalServiceName: string): string {
+  return `${OVERRIDE_PREFIX}${repoName}/${originalServiceName}`;
+}
+
+export async function getServiceOverride(repoName: string, originalServiceName: string): Promise<string | undefined> {
+  return LocalStorage.getItem<string>(overrideKey(repoName, originalServiceName));
+}
+
+export async function setServiceOverride(
+  repoName: string,
+  originalServiceName: string,
+  overrideName: string,
+): Promise<void> {
+  await LocalStorage.setItem(overrideKey(repoName, originalServiceName), overrideName);
+}
+
+export async function removeServiceOverride(repoName: string, originalServiceName: string): Promise<void> {
+  await LocalStorage.removeItem(overrideKey(repoName, originalServiceName));
+}
+
+export interface OverrideEntry {
+  repoName: string;
+  originalName: string;
+  overrideName: string;
+  key: string;
+}
+
+export async function getAllOverrides(): Promise<OverrideEntry[]> {
+  const all = await LocalStorage.allItems();
+  const entries: OverrideEntry[] = [];
+
+  for (const [key, value] of Object.entries(all)) {
+    if (!key.startsWith(OVERRIDE_PREFIX)) continue;
+    const rest = key.slice(OVERRIDE_PREFIX.length);
+    const slashIndex = rest.indexOf("/");
+    if (slashIndex === -1) continue;
+
+    entries.push({
+      repoName: rest.slice(0, slashIndex),
+      originalName: rest.slice(slashIndex + 1),
+      overrideName: String(value),
+      key,
+    });
+  }
+
+  return entries;
+}
