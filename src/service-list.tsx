@@ -1,4 +1,15 @@
-import { List, ActionPanel, Action, Form, Icon, showToast, Toast, getPreferenceValues, useNavigation } from "@raycast/api";
+import {
+  List,
+  ActionPanel,
+  Action,
+  Form,
+  Icon,
+  Color,
+  showToast,
+  Toast,
+  getPreferenceValues,
+  useNavigation,
+} from "@raycast/api";
 import { usePromise } from "@raycast/utils";
 import { join } from "path";
 import { discoverServices } from "./lib/services";
@@ -6,17 +17,31 @@ import { setServiceOverride, removeServiceOverride } from "./lib/storage";
 import { DeployTarget, Preferences, ServiceInfo } from "./types";
 import { DeployForm, executeDeploy } from "./deploy-form";
 
-function RenameForm({ repoName, service, onDone }: { repoName: string; service: ServiceInfo; onDone: () => void }) {
+function RenameForm({
+  repoName,
+  service,
+  onDone,
+}: {
+  repoName: string;
+  service: ServiceInfo;
+  onDone: () => void;
+}) {
   const { pop } = useNavigation();
 
   async function handleSubmit(values: { name: string }) {
     const trimmed = values.name.trim();
     if (!trimmed) {
-      await showToast({ style: Toast.Style.Failure, title: "Name cannot be empty" });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Name cannot be empty",
+      });
       return;
     }
     await setServiceOverride(repoName, service.originalName, trimmed);
-    await showToast({ style: Toast.Style.Success, title: `Renamed to ${trimmed}` });
+    await showToast({
+      style: Toast.Style.Success,
+      title: `Renamed to ${trimmed}`,
+    });
     onDone();
     pop();
   }
@@ -29,7 +54,11 @@ function RenameForm({ repoName, service, onDone }: { repoName: string; service: 
         </ActionPanel>
       }
     >
-      <Form.TextField id="name" title="Service Name" defaultValue={service.name} />
+      <Form.TextField
+        id="name"
+        title="Service Name"
+        defaultValue={service.name}
+      />
     </Form>
   );
 }
@@ -39,11 +68,18 @@ export function ServiceList({ repoName }: { repoName: string }) {
   const repoPath = join(prefs.projectsDirectory, repoName);
   const { push } = useNavigation();
 
-  const { data: services = [], isLoading, revalidate } = usePromise(() => discoverServices(repoPath));
+  const {
+    data: services = [],
+    isLoading,
+    revalidate,
+  } = usePromise(() => discoverServices(repoPath));
 
   async function handleResetOverride(service: ServiceInfo) {
     await removeServiceOverride(repoName, service.originalName);
-    await showToast({ style: Toast.Style.Success, title: `Reset to ${service.originalName}` });
+    await showToast({
+      style: Toast.Style.Success,
+      title: `Reset to ${service.originalName}`,
+    });
     revalidate();
   }
 
@@ -52,15 +88,29 @@ export function ServiceList({ repoName }: { repoName: string }) {
   }
 
   return (
-    <List isLoading={isLoading} navigationTitle={repoName} searchBarPlaceholder="Search services...">
+    <List
+      isLoading={isLoading}
+      navigationTitle={repoName}
+      searchBarPlaceholder="Search services..."
+    >
+      <List.EmptyView
+        icon={Icon.Box}
+        title="No services found"
+        description="No service directories discovered in this repository."
+      />
       {services.map((svc) => {
         const isOverridden = svc.name !== svc.originalName;
         return (
           <List.Item
             key={svc.originalName}
             title={svc.name}
+            icon={Icon.Box}
             subtitle={svc.path}
-            accessories={isOverridden ? [{ tag: "overridden" }] : []}
+            accessories={
+              isOverridden
+                ? [{ tag: { value: "overridden", color: Color.Orange } }]
+                : []
+            }
             actions={
               <ActionPanel>
                 <Action.Push
@@ -81,7 +131,13 @@ export function ServiceList({ repoName }: { repoName: string }) {
                   title="Rename Service"
                   icon={Icon.Pencil}
                   shortcut={{ modifiers: ["cmd"], key: "e" }}
-                  target={<RenameForm repoName={repoName} service={svc} onDone={revalidate} />}
+                  target={
+                    <RenameForm
+                      repoName={repoName}
+                      service={svc}
+                      onDone={revalidate}
+                    />
+                  }
                 />
                 {isOverridden && (
                   <Action

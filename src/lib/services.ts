@@ -37,7 +37,9 @@ function listDirectories(dirPath: string): string[] {
  * like build/, credentials/ are internal, not separate services).
  * Falls back to repo name if no `services/` directory exists.
  */
-export async function discoverServices(repoPath: string): Promise<ServiceInfo[]> {
+export async function discoverServices(
+  repoPath: string,
+): Promise<ServiceInfo[]> {
   const repoName = basename(repoPath);
   const servicesDir = join(repoPath, "services");
   const ignored = getIgnoredDirs();
@@ -71,7 +73,9 @@ export async function discoverServices(repoPath: string): Promise<ServiceInfo[]>
     } else {
       // Multiple top-level dirs — walk one level deeper, each subdir is a service
       const topDirPath = join(servicesDir, topDir);
-      const subDirs = listDirectories(topDirPath).filter((d) => !ignored.has(d));
+      const subDirs = listDirectories(topDirPath).filter(
+        (d) => !ignored.has(d),
+      );
 
       if (subDirs.length === 0) {
         const override = await getServiceOverride(repoName, topDir);

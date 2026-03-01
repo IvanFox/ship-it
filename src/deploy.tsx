@@ -1,7 +1,17 @@
-import { List, ActionPanel, Action, Icon, getPreferenceValues, showToast, Toast } from "@raycast/api";
+import {
+  List,
+  ActionPanel,
+  Action,
+  Icon,
+  Color,
+  getPreferenceValues,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { withAccessToken, usePromise } from "@raycast/utils";
+import { join } from "path";
 import { linearOAuth } from "./lib/linear";
-import { listRepositories } from "./lib/services";
+import { listRepositories, discoverServices } from "./lib/services";
 import { getPinnedRepos, togglePinRepo } from "./lib/storage";
 import { Preferences } from "./types";
 import { ServiceList } from "./service-list";
@@ -11,14 +21,33 @@ function RepoList() {
   const repos = listRepositories(prefs.projectsDirectory);
 
   const { data: pinnedRepos = [], revalidate } = usePromise(getPinnedRepos);
+  const { data: serviceCounts = {} } = usePromise(async () => {
+    const counts: Record<string, number> = {};
+    for (const repo of repos) {
+      const services = await discoverServices(
+        join(prefs.projectsDirectory, repo),
+      );
+      counts[repo] = services.length;
+    }
+    return counts;
+  });
 
   const pinned = repos.filter((r) => pinnedRepos.includes(r));
   const unpinned = repos.filter((r) => !pinnedRepos.includes(r));
 
   async function handleTogglePin(repo: string) {
     const isPinned = await togglePinRepo(repo);
-    await showToast({ style: Toast.Style.Success, title: isPinned ? `Pinned ${repo}` : `Unpinned ${repo}` });
+    await showToast({
+      style: Toast.Style.Success,
+      title: isPinned ? `Pinned ${repo}` : `Unpinned ${repo}`,
+    });
     revalidate();
+  }
+
+  function repoAccessories(repo: string) {
+    const count = serviceCounts[repo];
+    if (count === undefined) return [];
+    return [{ text: `${count} ${count === 1 ? "service" : "services"}` }];
   }
 
   return (
@@ -29,10 +58,14 @@ function RepoList() {
             <List.Item
               key={repo}
               title={repo}
-              icon={Icon.Star}
+              icon={{ source: Icon.Star, tintColor: Color.Yellow }}
+              accessories={repoAccessories(repo)}
               actions={
                 <ActionPanel>
-                  <Action.Push title="Select Repository" target={<ServiceList repoName={repo} />} />
+                  <Action.Push
+                    title="Select Repository"
+                    target={<ServiceList repoName={repo} />}
+                  />
                   <Action
                     title="Unpin Repository"
                     icon={Icon.StarDisabled}
@@ -50,9 +83,14 @@ function RepoList() {
           <List.Item
             key={repo}
             title={repo}
+            icon={Icon.Folder}
+            accessories={repoAccessories(repo)}
             actions={
               <ActionPanel>
-                <Action.Push title="Select Repository" target={<ServiceList repoName={repo} />} />
+                <Action.Push
+                  title="Select Repository"
+                  target={<ServiceList repoName={repo} />}
+                />
                 <Action
                   title="Pin Repository"
                   icon={Icon.Star}
@@ -64,6 +102,11 @@ function RepoList() {
           />
         ))}
       </List.Section>
+      <List.EmptyView
+        icon={Icon.Folder}
+        title="No repositories found"
+        description="Check your Projects Directory in extension preferences."
+      />
     </List>
   );
 }

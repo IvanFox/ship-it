@@ -25,7 +25,12 @@ describe("requiresMainBranch", () => {
 
 describe("STAGES_FOR_TARGET", () => {
   it('"all" contains all 4 stages in order', () => {
-    expect(STAGES_FOR_TARGET.all).toEqual(["unstable", "staging", "sandbox", "live"]);
+    expect(STAGES_FOR_TARGET.all).toEqual([
+      "unstable",
+      "staging",
+      "sandbox",
+      "live",
+    ]);
     expect(STAGES_FOR_TARGET.all).toBe(ALL_STAGES);
   });
 

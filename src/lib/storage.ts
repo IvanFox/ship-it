@@ -6,8 +6,13 @@ function overrideKey(repoName: string, originalServiceName: string): string {
   return `${OVERRIDE_PREFIX}${repoName}/${originalServiceName}`;
 }
 
-export async function getServiceOverride(repoName: string, originalServiceName: string): Promise<string | undefined> {
-  return LocalStorage.getItem<string>(overrideKey(repoName, originalServiceName));
+export async function getServiceOverride(
+  repoName: string,
+  originalServiceName: string,
+): Promise<string | undefined> {
+  return LocalStorage.getItem<string>(
+    overrideKey(repoName, originalServiceName),
+  );
 }
 
 export async function setServiceOverride(
@@ -15,10 +20,16 @@ export async function setServiceOverride(
   originalServiceName: string,
   overrideName: string,
 ): Promise<void> {
-  await LocalStorage.setItem(overrideKey(repoName, originalServiceName), overrideName);
+  await LocalStorage.setItem(
+    overrideKey(repoName, originalServiceName),
+    overrideName,
+  );
 }
 
-export async function removeServiceOverride(repoName: string, originalServiceName: string): Promise<void> {
+export async function removeServiceOverride(
+  repoName: string,
+  originalServiceName: string,
+): Promise<void> {
   await LocalStorage.removeItem(overrideKey(repoName, originalServiceName));
 }
 
