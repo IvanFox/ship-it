@@ -3,8 +3,8 @@ import { usePromise } from "@raycast/utils";
 import { join } from "path";
 import { discoverServices } from "./lib/services";
 import { setServiceOverride, removeServiceOverride } from "./lib/storage";
-import { Preferences, ServiceInfo } from "./types";
-import { DeployForm } from "./deploy-form";
+import { DeployTarget, Preferences, ServiceInfo } from "./types";
+import { DeployForm, executeDeploy } from "./deploy-form";
 
 function RenameForm({ repoName, service, onDone }: { repoName: string; service: ServiceInfo; onDone: () => void }) {
   const { pop } = useNavigation();
@@ -37,6 +37,7 @@ function RenameForm({ repoName, service, onDone }: { repoName: string; service: 
 export function ServiceList({ repoName }: { repoName: string }) {
   const prefs = getPreferenceValues<Preferences>();
   const repoPath = join(prefs.projectsDirectory, repoName);
+  const { push } = useNavigation();
 
   const { data: services = [], isLoading, revalidate } = usePromise(() => discoverServices(repoPath));
 
@@ -44,6 +45,10 @@ export function ServiceList({ repoName }: { repoName: string }) {
     await removeServiceOverride(repoName, service.originalName);
     await showToast({ style: Toast.Style.Success, title: `Reset to ${service.originalName}` });
     revalidate();
+  }
+
+  function handleQuickDeploy(svc: ServiceInfo, target: DeployTarget) {
+    executeDeploy(svc, target, repoPath, push);
   }
 
   return (
@@ -61,6 +66,16 @@ export function ServiceList({ repoName }: { repoName: string }) {
                 <Action.Push
                   title="Deploy Service"
                   target={<DeployForm repoName={repoName} service={svc} />}
+                />
+                <Action
+                  title="Deploy to Unstable"
+                  shortcut={{ modifiers: ["cmd"], key: "1" }}
+                  onAction={() => handleQuickDeploy(svc, "unstable")}
+                />
+                <Action
+                  title="Deploy to Staging"
+                  shortcut={{ modifiers: ["cmd"], key: "2" }}
+                  onAction={() => handleQuickDeploy(svc, "staging")}
                 />
                 <Action.Push
                   title="Rename Service"

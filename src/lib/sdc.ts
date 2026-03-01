@@ -34,11 +34,15 @@ export async function gitCheckoutMainAndPull(repoPath: string): Promise<void> {
 export async function deploySingle(
   service: string,
   stage: string,
-  ticket: string,
   repoPath: string,
+  ticket?: string,
 ): Promise<DeployResult> {
   const sdcPath = getSdcPath();
-  const { stdout } = await execInRepo(sdcPath, ["-d", "-s", service, "-stage", stage, "-ignore-tests", "-y", "-t", ticket], repoPath);
+  const args = ["-d", "-s", service, "-stage", stage, "-ignore-tests", "-y"];
+  if (ticket) {
+    args.push("-t", ticket);
+  }
+  const { stdout } = await execInRepo(sdcPath, args, repoPath);
 
   return {
     stage,

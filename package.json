@@ -3,7 +3,7 @@
   "name": "ship-it",
   "title": "Ship It",
   "description": "Deploy services via sdc with auto-discovery, Linear ticket integration, and Slack message generation",
-  "icon": "command-icon.png",
+  "icon": "🚢",
   "author": "team",
   "categories": [
     "Developer Tools"

@@ -1,15 +1,80 @@
-import { Form, ActionPanel, Action, showToast, Toast, Clipboard, getPreferenceValues } from "@raycast/api";
+import { Form, ActionPanel, Action, showToast, Toast, Clipboard, getPreferenceValues, Detail, useNavigation } from "@raycast/api";
 import { usePromise } from "@raycast/utils";
 import { join } from "path";
 import { useState } from "react";
 import { fetchAssignedTickets, LinearTicket } from "./lib/linear";
 import { deploySingle, gitCheckoutMainAndPull } from "./lib/sdc";
 import { buildSlackMessage } from "./lib/slack";
-import { DeployTarget, STAGES_FOR_TARGET, requiresMainBranch, ServiceInfo, Preferences } from "./types";
+import { DeployResult, DeployTarget, STAGES_FOR_TARGET, requiresMainBranch, ServiceInfo, Preferences } from "./types";
+
+function buildResultMarkdown(serviceName: string, results: DeployResult[], error?: string): string {
+  const lines: string[] = [`# Deploy: ${serviceName}`, ""];
+
+  if (error) {
+    lines.push(`## Error`, "", "```", error, "```", "");
+  }
+
+  for (const r of results) {
+    lines.push(`## ${r.stage}`, "");
+    if (r.prUrl) {
+      lines.push(`PR: ${r.prUrl}`, "");
+    }
+    lines.push("```", r.stdout.trim(), "```", "");
+  }
+
+  return lines.join("\n");
+}
+
+export async function executeDeploy(
+  service: ServiceInfo,
+  target: DeployTarget,
+  repoPath: string,
+  push: (view: React.ReactNode) => void,
+  ticket?: string,
+) {
+  const stages = STAGES_FOR_TARGET[target];
+  const toast = await showToast({ style: Toast.Style.Animated, title: `Deploying ${service.name}...` });
+  const results: DeployResult[] = [];
+
+  try {
+    if (requiresMainBranch(target)) {
+      toast.message = "Checking out main...";
+      await gitCheckoutMainAndPull(repoPath);
+    }
+
+    for (const stage of stages) {
+      toast.message = `Deploying to ${stage}...`;
+      const result = await deploySingle(service.name, stage, repoPath, ticket);
+      results.push(result);
+    }
+
+    const slackMessage = buildSlackMessage(service.name, results);
+    if (slackMessage) {
+      await Clipboard.copy(slackMessage);
+      toast.style = Toast.Style.Success;
+      toast.title = "Deployed — PR links copied to clipboard";
+      toast.message = slackMessage;
+    } else {
+      toast.style = Toast.Style.Success;
+      toast.title = `Deployed ${service.name}`;
+      toast.message = stages.join(", ");
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    toast.style = Toast.Style.Failure;
+    toast.title = "Deployment failed";
+    toast.message = msg;
+    push(<Detail markdown={buildResultMarkdown(service.name, results, msg)} />);
+    return;
+  }
+
+  push(<Detail markdown={buildResultMarkdown(service.name, results)} />);
+}
 
 export function DeployForm({ repoName, service }: { repoName: string; service: ServiceInfo }) {
   const prefs = getPreferenceValues<Preferences>();
   const repoPath = join(prefs.projectsDirectory, repoName);
+  const { push } = useNavigation();
 
   const { data: tickets = [] } = usePromise(fetchAssignedTickets);
   const [isDeploying, setIsDeploying] = useState(false);
@@ -21,37 +86,8 @@ export function DeployForm({ repoName, service }: { repoName: string; service: S
     }
 
     setIsDeploying(true);
-    const stages = STAGES_FOR_TARGET[target];
-    const toast = await showToast({ style: Toast.Style.Animated, title: `Deploying ${service.name}...` });
-
     try {
-      if (requiresMainBranch(target)) {
-        toast.message = "Checking out main...";
-        await gitCheckoutMainAndPull(repoPath);
-      }
-
-      const results = [];
-      for (const stage of stages) {
-        toast.message = `Deploying to ${stage}...`;
-        const result = await deploySingle(service.name, stage, ticket, repoPath);
-        results.push(result);
-      }
-
-      const slackMessage = buildSlackMessage(results);
-      if (slackMessage) {
-        await Clipboard.copy(slackMessage);
-        toast.style = Toast.Style.Success;
-        toast.title = "Deployed — PR links copied to clipboard";
-        toast.message = slackMessage;
-      } else {
-        toast.style = Toast.Style.Success;
-        toast.title = `Deployed ${service.name}`;
-        toast.message = stages.join(", ");
-      }
-    } catch (error) {
-      toast.style = Toast.Style.Failure;
-      toast.title = "Deployment failed";
-      toast.message = error instanceof Error ? error.message : String(error);
+      await executeDeploy(service, target, repoPath, push, ticket);
     } finally {
       setIsDeploying(false);
     }
@@ -66,16 +102,6 @@ export function DeployForm({ repoName, service }: { repoName: string; service: S
           <Action.SubmitForm
             title="Deploy to All Environments"
             onSubmit={(values: { ticket: string }) => handleDeploy("all", values.ticket)}
-          />
-          <Action.SubmitForm
-            title="Deploy to Unstable"
-            shortcut={{ modifiers: ["cmd"], key: "1" }}
-            onSubmit={(values: { ticket: string }) => handleDeploy("unstable", values.ticket)}
-          />
-          <Action.SubmitForm
-            title="Deploy to Staging"
-            shortcut={{ modifiers: ["cmd"], key: "2" }}
-            onSubmit={(values: { ticket: string }) => handleDeploy("staging", values.ticket)}
           />
           <Action.SubmitForm
             title="Deploy to Sandbox"

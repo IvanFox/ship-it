@@ -31,8 +31,10 @@ function listDirectories(dirPath: string): string[] {
 /**
  * Discover services in a repository.
  *
- * Scans `services/` directory. For each non-ignored subdirectory, walks one
- * level deeper to find the service name (deepest directory).
+ * Scans `services/` directory. If multiple non-ignored top-level subdirectories
+ * exist, walks one level deeper to find individual service names. If only one
+ * top-level subdirectory exists, treats it as a single service (subdirectories
+ * like build/, credentials/ are internal, not separate services).
  * Falls back to repo name if no `services/` directory exists.
  */
 export async function discoverServices(repoPath: string): Promise<ServiceInfo[]> {
@@ -54,15 +56,12 @@ export async function discoverServices(repoPath: string): Promise<ServiceInfo[]>
   }
 
   const services: ServiceInfo[] = [];
+  const filteredDirs = topLevelDirs.filter((d) => !ignored.has(d));
+  const isMultiService = filteredDirs.length > 1;
 
-  for (const topDir of topLevelDirs) {
-    if (ignored.has(topDir)) continue;
-
-    const topDirPath = join(servicesDir, topDir);
-    const subDirs = listDirectories(topDirPath);
-
-    if (subDirs.length === 0) {
-      // Top-level dir itself is the service
+  for (const topDir of filteredDirs) {
+    if (!isMultiService) {
+      // Single top-level dir — it is the service, don't walk deeper
       const override = await getServiceOverride(repoName, topDir);
       services.push({
         name: override ?? topDir,
@@ -70,16 +69,26 @@ export async function discoverServices(repoPath: string): Promise<ServiceInfo[]>
         path: `services/${topDir}`,
       });
     } else {
-      // Walk one level deeper — each subdir is a service
-      for (const subDir of subDirs) {
-        if (ignored.has(subDir)) continue;
-        const originalName = subDir;
-        const override = await getServiceOverride(repoName, originalName);
+      // Multiple top-level dirs — walk one level deeper, each subdir is a service
+      const topDirPath = join(servicesDir, topDir);
+      const subDirs = listDirectories(topDirPath).filter((d) => !ignored.has(d));
+
+      if (subDirs.length === 0) {
+        const override = await getServiceOverride(repoName, topDir);
         services.push({
-          name: override ?? originalName,
-          originalName,
-          path: `services/${topDir}/${subDir}`,
+          name: override ?? topDir,
+          originalName: topDir,
+          path: `services/${topDir}`,
         });
+      } else {
+        for (const subDir of subDirs) {
+          const override = await getServiceOverride(repoName, subDir);
+          services.push({
+            name: override ?? subDir,
+            originalName: subDir,
+            path: `services/${topDir}/${subDir}`,
+          });
+        }
       }
     }
   }
