@@ -8,6 +8,7 @@ import { execFile } from "child_process";
 import {
   parsePrUrl,
   parseBranch,
+  extractTicketId,
   gitCheckoutMainAndPull,
   deploySingle,
 } from "../sdc";
@@ -94,6 +95,30 @@ describe("parseBranch", () => {
 
   it("returns null when no branch line present", () => {
     expect(parseBranch("Deploying... done.")).toBeNull();
+  });
+});
+
+describe("extractTicketId", () => {
+  it("extracts ticket from branch name prefix", () => {
+    expect(extractTicketId("CAP-1479-add-feature")).toBe("CAP-1479");
+  });
+
+  it("extracts ticket from commit message prefix", () => {
+    expect(extractTicketId("CAP-1479 add feature")).toBe("CAP-1479");
+  });
+
+  it("normalises to uppercase", () => {
+    expect(extractTicketId("cap-123-foo")).toBe("CAP-123");
+  });
+
+  it("returns null when no ticket present", () => {
+    expect(extractTicketId("main")).toBeNull();
+    expect(extractTicketId("fix-typo")).toBeNull();
+    expect(extractTicketId("")).toBeNull();
+  });
+
+  it("handles ticket-only branch name", () => {
+    expect(extractTicketId("ENG-42")).toBe("ENG-42");
   });
 });
 

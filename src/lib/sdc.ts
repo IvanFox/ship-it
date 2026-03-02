@@ -36,6 +36,32 @@ export function parseBranch(stdout: string): string | null {
   return match?.[1] ?? null;
 }
 
+const TICKET_ID_REGEX = /[A-Za-z]{1,5}-\d{1,6}/;
+
+export function extractTicketId(text: string): string | null {
+  const match = text.match(TICKET_ID_REGEX);
+  return match ? match[0].toUpperCase() : null;
+}
+
+export async function getCurrentBranch(repoPath: string): Promise<string> {
+  const { stdout } = await execInRepo("git", ["branch", "--show-current"], repoPath);
+  return stdout.trim();
+}
+
+export async function getLastCommitMessage(repoPath: string): Promise<string> {
+  const { stdout } = await execInRepo("git", ["log", "--format=%s", "-1"], repoPath);
+  return stdout.trim();
+}
+
+export async function detectTicketId(repoPath: string): Promise<string | null> {
+  const branch = await getCurrentBranch(repoPath);
+  const fromBranch = extractTicketId(branch);
+  if (fromBranch) return fromBranch;
+
+  const commitMsg = await getLastCommitMessage(repoPath);
+  return extractTicketId(commitMsg);
+}
+
 export async function gitCheckoutMainAndPull(repoPath: string): Promise<void> {
   await execInRepo("git", ["checkout", "main"], repoPath);
   await execInRepo("git", ["pull"], repoPath);

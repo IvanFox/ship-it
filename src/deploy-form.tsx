@@ -12,9 +12,9 @@ import {
 } from "@raycast/api";
 import { usePromise } from "@raycast/utils";
 import { join } from "path";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchAssignedTickets, LinearTicket } from "./lib/linear";
-import { deploySingle, gitCheckoutMainAndPull } from "./lib/sdc";
+import { deploySingle, gitCheckoutMainAndPull, detectTicketId } from "./lib/sdc";
 import { buildSlackMessage } from "./lib/slack";
 import { saveDeployToHistory } from "./lib/storage";
 import {
@@ -202,15 +202,30 @@ export function DeployForm({
   const { push } = useNavigation();
 
   const { data: tickets = [] } = usePromise(fetchAssignedTickets);
+  const { data: detectedTicket } = usePromise(() => detectTicketId(repoPath));
   const [isDeploying, setIsDeploying] = useState(false);
   const [ticketSource, setTicketSource] = useState("assigned");
   const [manualTicketError, setManualTicketError] = useState<
     string | undefined
   >();
+  const [didAutoSelect, setDidAutoSelect] = useState(false);
 
   const MANUAL_ENTRY = "__manual__";
   const isManual = ticketSource === MANUAL_ENTRY;
   const TICKET_PATTERN = /^[A-Za-z]{1,5}-\d{1,6}$/;
+
+  // Auto-select detected ticket once both tickets list and detection resolve
+  useEffect(() => {
+    if (didAutoSelect || !detectedTicket) return;
+    const match = tickets.find((t) => t.identifier === detectedTicket);
+    if (match) {
+      setTicketSource(match.identifier);
+    } else if (tickets.length > 0) {
+      // Tickets loaded but no match — switch to manual with pre-fill
+      setTicketSource(MANUAL_ENTRY);
+    }
+    setDidAutoSelect(true);
+  }, [tickets, detectedTicket, didAutoSelect]);
 
   function resolveTicket(values: {
     ticket: string;
@@ -293,6 +308,7 @@ export function DeployForm({
       <Form.Dropdown
         id="ticket"
         title="Linear Ticket"
+        value={ticketSource}
         onChange={setTicketSource}
       >
         {tickets.map((t: LinearTicket) => (
@@ -313,6 +329,7 @@ export function DeployForm({
           id="manualTicket"
           title="Ticket ID"
           placeholder="ENG-123"
+          defaultValue={isManual && detectedTicket ? detectedTicket : undefined}
           error={manualTicketError}
           onChange={(v) => setManualTicketError(validateManualTicket(v))}
           onBlur={(e) =>
