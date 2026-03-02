@@ -64,10 +64,22 @@ export function DeployResultView({
       ? Color.Orange
       : Color.Green;
 
+  const slackMessage = buildSlackMessage(serviceName, results);
+
   return (
     <Detail
       navigationTitle={`Deploy: ${serviceName}`}
       markdown={buildResultMarkdown(results, error)}
+      actions={
+        slackMessage ? (
+          <ActionPanel>
+            <Action.CopyToClipboard
+              title="Copy Slack Message"
+              content={slackMessage}
+            />
+          </ActionPanel>
+        ) : undefined
+      }
       metadata={
         <Detail.Metadata>
           <Detail.Metadata.Label title="Service" text={serviceName} />

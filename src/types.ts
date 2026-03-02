@@ -47,7 +47,7 @@ export interface DeployHistoryEntry {
 const NO_CHANGES_MARKER = "No services for changes";
 
 export function hasNoChanges(results: DeployResult[]): boolean {
-  return results.some((r) => r.stdout.includes(NO_CHANGES_MARKER));
+  return results.every((r) => r.stdout.includes(NO_CHANGES_MARKER));
 }
 
 export interface Preferences {
