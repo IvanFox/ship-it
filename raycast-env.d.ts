@@ -22,10 +22,14 @@ declare type Preferences = ExtensionPreferences
 declare namespace Preferences {
   /** Preferences accessible in the `deploy` command */
   export type Deploy = ExtensionPreferences & {}
+  /** Preferences accessible in the `deploy-history` command */
+  export type DeployHistory = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
   /** Arguments passed to the `deploy` command */
   export type Deploy = {}
+  /** Arguments passed to the `deploy-history` command */
+  export type DeployHistory = {}
 }
 

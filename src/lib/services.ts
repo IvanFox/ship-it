@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from "fs";
+import { readdirSync, statSync, existsSync } from "fs";
 import { join, basename } from "path";
 import { getPreferenceValues } from "@raycast/api";
 import { ServiceInfo, Preferences } from "../types";
@@ -116,5 +116,7 @@ export async function discoverServices(
  * List repository directories from the configured projects path.
  */
 export function listRepositories(projectsDirectory: string): string[] {
-  return listDirectories(projectsDirectory).sort();
+  return listDirectories(projectsDirectory)
+    .filter((dir) => existsSync(join(projectsDirectory, dir, "go.mod")))
+    .sort();
 }

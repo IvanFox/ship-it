@@ -4,13 +4,15 @@ import { __reset, __setPreferences } from "../../__mocks__/raycast";
 vi.mock("fs", () => ({
   readdirSync: vi.fn(() => []),
   statSync: vi.fn(() => ({ isDirectory: () => true })),
+  existsSync: vi.fn(() => true),
 }));
 
-import { readdirSync, statSync } from "fs";
+import { readdirSync, statSync, existsSync } from "fs";
 import { discoverServices, listRepositories } from "../services";
 
 const mockReaddirSync = readdirSync as unknown as ReturnType<typeof vi.fn>;
 const mockStatSync = statSync as unknown as ReturnType<typeof vi.fn>;
+const mockExistsSync = existsSync as unknown as ReturnType<typeof vi.fn>;
 
 function setupFs(tree: Record<string, string[]>) {
   mockReaddirSync.mockImplementation((dirPath: string) => {
@@ -31,16 +33,22 @@ beforeEach(() => {
 describe("discoverServices", () => {
   it("discovers services two levels deep", async () => {
     setupFs({
-      "/repo/services": ["corporate-action"],
+      "/repo/services": ["corporate-action", "another-group"],
       "/repo/services/corporate-action": ["corporate-action-processing"],
+      "/repo/services/another-group": ["another-service"],
     });
 
     const services = await discoverServices("/repo");
-    expect(services).toHaveLength(1);
+    expect(services).toHaveLength(2);
     expect(services[0]).toEqual({
       name: "corporate-action-processing",
       originalName: "corporate-action-processing",
       path: "services/corporate-action/corporate-action-processing",
+    });
+    expect(services[1]).toEqual({
+      name: "another-service",
+      originalName: "another-service",
+      path: "services/another-group/another-service",
     });
   });
 
@@ -119,5 +127,16 @@ describe("listRepositories", () => {
 
     const repos = listRepositories("/projects");
     expect(repos).toEqual(["repo-a", "repo-b"]);
+  });
+
+  it("filters out repositories without go.mod", () => {
+    mockReaddirSync.mockReturnValue(["go-repo", "js-repo", "py-repo"]);
+    mockStatSync.mockImplementation(() => ({ isDirectory: () => true }));
+    mockExistsSync.mockImplementation(
+      (filePath: string) => filePath === "/projects/go-repo/go.mod",
+    );
+
+    const repos = listRepositories("/projects");
+    expect(repos).toEqual(["go-repo"]);
   });
 });

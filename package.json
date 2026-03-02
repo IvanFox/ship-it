@@ -15,6 +15,12 @@
       "title": "Deploy Service",
       "description": "Deploy a service to one or all environments",
       "mode": "view"
+    },
+    {
+      "name": "deploy-history",
+      "title": "Deploy History",
+      "description": "View recent deployment results",
+      "mode": "view"
     }
   ],
   "preferences": [

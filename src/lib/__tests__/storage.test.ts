@@ -5,7 +5,10 @@ import {
   setServiceOverride,
   removeServiceOverride,
   getAllOverrides,
+  getDeployHistory,
+  saveDeployToHistory,
 } from "../storage";
+import { DeployHistoryEntry } from "../../types";
 
 beforeEach(() => {
   __reset();
@@ -62,5 +65,63 @@ describe("getAllOverrides", () => {
     const overrides = await getAllOverrides();
     expect(overrides).toHaveLength(1);
     expect(overrides[0].repoName).toBe("repo");
+  });
+});
+
+function makeEntry(
+  overrides: Partial<DeployHistoryEntry> = {},
+): DeployHistoryEntry {
+  return {
+    id: crypto.randomUUID(),
+    serviceName: "test-svc",
+    repoName: "test-repo",
+    target: "unstable",
+    timestamp: Date.now(),
+    results: [{ stage: "unstable", prUrl: null, branch: null, stdout: "ok" }],
+    ...overrides,
+  };
+}
+
+describe("deploy history", () => {
+  it("returns empty array when no history exists", async () => {
+    const history = await getDeployHistory();
+    expect(history).toEqual([]);
+  });
+
+  it("saves and retrieves a deploy entry", async () => {
+    const entry = makeEntry({ serviceName: "my-svc" });
+    await saveDeployToHistory(entry);
+
+    const history = await getDeployHistory();
+    expect(history).toHaveLength(1);
+    expect(history[0].serviceName).toBe("my-svc");
+  });
+
+  it("prepends new entries (most recent first)", async () => {
+    await saveDeployToHistory(makeEntry({ serviceName: "first" }));
+    await saveDeployToHistory(makeEntry({ serviceName: "second" }));
+
+    const history = await getDeployHistory();
+    expect(history[0].serviceName).toBe("second");
+    expect(history[1].serviceName).toBe("first");
+  });
+
+  it("trims history to 10 entries", async () => {
+    for (let i = 0; i < 12; i++) {
+      await saveDeployToHistory(makeEntry({ serviceName: `svc-${i}` }));
+    }
+
+    const history = await getDeployHistory();
+    expect(history).toHaveLength(10);
+    expect(history[0].serviceName).toBe("svc-11");
+    expect(history[9].serviceName).toBe("svc-2");
+  });
+
+  it("handles corrupt JSON gracefully", async () => {
+    const { LocalStorage } = await import("@raycast/api");
+    await LocalStorage.setItem("deploy-history", "not-json");
+
+    const history = await getDeployHistory();
+    expect(history).toEqual([]);
   });
 });
