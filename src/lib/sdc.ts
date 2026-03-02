@@ -36,11 +36,13 @@ export function parseBranch(stdout: string): string | null {
   return match?.[1] ?? null;
 }
 
-const TICKET_ID_REGEX = /[A-Za-z]{1,5}-\d{1,6}/;
+const TICKET_ID_REGEX = /[A-Za-z]{1,5}[\s-]\d{1,6}/;
 
 export function extractTicketId(text: string): string | null {
   const match = text.match(TICKET_ID_REGEX);
-  return match ? match[0].toUpperCase() : null;
+  if (!match) return null;
+  // Normalise "CAP 1479" → "CAP-1479"
+  return match[0].replace(/\s/, "-").toUpperCase();
 }
 
 export async function getCurrentBranch(repoPath: string): Promise<string> {

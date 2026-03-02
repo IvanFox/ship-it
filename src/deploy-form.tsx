@@ -216,12 +216,11 @@ export function DeployForm({
 
   // Auto-select detected ticket once both tickets list and detection resolve
   useEffect(() => {
-    if (didAutoSelect || !detectedTicket) return;
+    if (didAutoSelect || !detectedTicket || tickets.length === 0) return;
     const match = tickets.find((t) => t.identifier === detectedTicket);
     if (match) {
       setTicketSource(match.identifier);
-    } else if (tickets.length > 0) {
-      // Tickets loaded but no match — switch to manual with pre-fill
+    } else {
       setTicketSource(MANUAL_ENTRY);
     }
     setDidAutoSelect(true);

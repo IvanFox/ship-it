@@ -111,6 +111,10 @@ describe("extractTicketId", () => {
     expect(extractTicketId("cap-123-foo")).toBe("CAP-123");
   });
 
+  it("extracts ticket with space separator and normalises to hyphen", () => {
+    expect(extractTicketId("CAP 1479 some commit message")).toBe("CAP-1479");
+  });
+
   it("returns null when no ticket present", () => {
     expect(extractTicketId("main")).toBeNull();
     expect(extractTicketId("fix-typo")).toBeNull();
