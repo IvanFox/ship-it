@@ -1,6 +1,9 @@
 import { LocalStorage } from "@raycast/api";
+import { DeployHistoryEntry } from "../types";
 
 const OVERRIDE_PREFIX = "override:";
+const DEPLOY_HISTORY_KEY = "deploy-history";
+const MAX_HISTORY_ENTRIES = 10;
 
 function overrideKey(repoName: string, originalServiceName: string): string {
   return `${OVERRIDE_PREFIX}${repoName}/${originalServiceName}`;
@@ -85,4 +88,25 @@ export async function getAllOverrides(): Promise<OverrideEntry[]> {
   }
 
   return entries;
+}
+
+export async function getDeployHistory(): Promise<DeployHistoryEntry[]> {
+  const raw = await LocalStorage.getItem<string>(DEPLOY_HISTORY_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export async function saveDeployToHistory(
+  entry: DeployHistoryEntry,
+): Promise<void> {
+  const history = await getDeployHistory();
+  history.unshift(entry);
+  await LocalStorage.setItem(
+    DEPLOY_HISTORY_KEY,
+    JSON.stringify(history.slice(0, MAX_HISTORY_ENTRIES)),
+  );
 }

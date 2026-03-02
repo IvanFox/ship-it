@@ -84,7 +84,7 @@ export function ServiceList({ repoName }: { repoName: string }) {
   }
 
   function handleQuickDeploy(svc: ServiceInfo, target: DeployTarget) {
-    executeDeploy(svc, target, repoPath, push);
+    executeDeploy(svc, target, repoPath, repoName, push);
   }
 
   return (

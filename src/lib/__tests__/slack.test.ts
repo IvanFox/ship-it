@@ -2,10 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildSlackMessage } from "../slack";
 import type { DeployResult } from "../../types";
 
-function result(
-  stage: string,
-  prUrl: string | null = null,
-): DeployResult {
+function result(stage: string, prUrl: string | null = null): DeployResult {
   return { stage, prUrl, branch: null, stdout: "" };
 }
 

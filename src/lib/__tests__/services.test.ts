@@ -132,8 +132,8 @@ describe("listRepositories", () => {
   it("filters out repositories without go.mod", () => {
     mockReaddirSync.mockReturnValue(["go-repo", "js-repo", "py-repo"]);
     mockStatSync.mockImplementation(() => ({ isDirectory: () => true }));
-    mockExistsSync.mockImplementation((filePath: string) =>
-      filePath === "/projects/go-repo/go.mod",
+    mockExistsSync.mockImplementation(
+      (filePath: string) => filePath === "/projects/go-repo/go.mod",
     );
 
     const repos = listRepositories("/projects");

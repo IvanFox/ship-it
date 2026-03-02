@@ -34,6 +34,16 @@ export function requiresMainBranch(target: DeployTarget): boolean {
   return MAIN_BRANCH_STAGES.has(target);
 }
 
+export interface DeployHistoryEntry {
+  id: string;
+  serviceName: string;
+  repoName: string;
+  target: DeployTarget;
+  timestamp: number;
+  results: DeployResult[];
+  error?: string;
+}
+
 export interface Preferences {
   projectsDirectory: string;
   ignoredDirectories: string;

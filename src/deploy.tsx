@@ -15,6 +15,7 @@ import { listRepositories, discoverServices } from "./lib/services";
 import { getPinnedRepos, togglePinRepo } from "./lib/storage";
 import { Preferences } from "./types";
 import { ServiceList } from "./service-list";
+import DeployHistory from "./deploy-history";
 
 function RepoList() {
   const prefs = getPreferenceValues<Preferences>();
@@ -72,6 +73,12 @@ function RepoList() {
                     shortcut={{ modifiers: ["cmd"], key: "d" }}
                     onAction={() => handleTogglePin(repo)}
                   />
+                  <Action.Push
+                    title="Deploy History"
+                    icon={Icon.Clock}
+                    shortcut={{ modifiers: ["cmd"], key: "h" }}
+                    target={<DeployHistory />}
+                  />
                 </ActionPanel>
               }
             />
@@ -96,6 +103,12 @@ function RepoList() {
                   icon={Icon.Star}
                   shortcut={{ modifiers: ["cmd"], key: "d" }}
                   onAction={() => handleTogglePin(repo)}
+                />
+                <Action.Push
+                  title="Deploy History"
+                  icon={Icon.Clock}
+                  shortcut={{ modifiers: ["cmd"], key: "h" }}
+                  target={<DeployHistory />}
                 />
               </ActionPanel>
             }

@@ -16,6 +16,7 @@ import { useState } from "react";
 import { fetchAssignedTickets, LinearTicket } from "./lib/linear";
 import { deploySingle, gitCheckoutMainAndPull } from "./lib/sdc";
 import { buildSlackMessage } from "./lib/slack";
+import { saveDeployToHistory } from "./lib/storage";
 import {
   DeployResult,
   DeployTarget,
@@ -39,7 +40,7 @@ function buildResultMarkdown(results: DeployResult[], error?: string): string {
   return lines.join("\n");
 }
 
-function DeployResultView({
+export function DeployResultView({
   serviceName,
   results,
   error,
@@ -61,9 +62,7 @@ function DeployResultView({
       metadata={
         <Detail.Metadata>
           <Detail.Metadata.Label title="Service" text={serviceName} />
-          {branch && (
-            <Detail.Metadata.Label title="Branch" text={branch} />
-          )}
+          {branch && <Detail.Metadata.Label title="Branch" text={branch} />}
           <Detail.Metadata.TagList title="Status">
             <Detail.Metadata.TagList.Item
               text={error ? "Failed" : "Success"}
@@ -95,6 +94,7 @@ export async function executeDeploy(
   service: ServiceInfo,
   target: DeployTarget,
   repoPath: string,
+  repoName: string,
   push: (view: React.ReactNode) => void,
   ticket?: string,
 ) {
@@ -133,6 +133,15 @@ export async function executeDeploy(
     toast.style = Toast.Style.Failure;
     toast.title = "Deployment failed";
     toast.message = msg;
+    await saveDeployToHistory({
+      id: crypto.randomUUID(),
+      serviceName: service.name,
+      repoName,
+      target,
+      timestamp: Date.now(),
+      results,
+      error: msg,
+    });
     push(
       <DeployResultView
         serviceName={service.name}
@@ -143,6 +152,14 @@ export async function executeDeploy(
     return;
   }
 
+  await saveDeployToHistory({
+    id: crypto.randomUUID(),
+    serviceName: service.name,
+    repoName,
+    target,
+    timestamp: Date.now(),
+    results,
+  });
   push(<DeployResultView serviceName={service.name} results={results} />);
 }
 
@@ -198,7 +215,7 @@ export function DeployForm({
 
     setIsDeploying(true);
     try {
-      await executeDeploy(service, target, repoPath, push, ticket);
+      await executeDeploy(service, target, repoPath, repoName, push, ticket);
     } finally {
       setIsDeploying(false);
     }

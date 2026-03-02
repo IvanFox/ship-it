@@ -9,9 +9,7 @@ export function buildSlackMessage(
   results: DeployResult[],
 ): string | null {
   const prUrls = results
-    .filter(
-      (r) => (r.stage === "sandbox" || r.stage === "live") && r.prUrl,
-    )
+    .filter((r) => (r.stage === "sandbox" || r.stage === "live") && r.prUrl)
     .map((r) => r.prUrl as string);
 
   if (prUrls.length === 0) return null;
