@@ -22,6 +22,7 @@ import {
   DeployTarget,
   STAGES_FOR_TARGET,
   requiresMainBranch,
+  hasNoChanges,
   ServiceInfo,
   Preferences,
 } from "./types";
@@ -54,6 +55,14 @@ export function DeployResultView({
     .map((r) => ({ stage: r.stage, url: r.prUrl as string }));
   const stages = results.map((r) => r.stage);
   const branch = results.find((r) => r.branch)?.branch ?? null;
+  const noChanges = !error && hasNoChanges(results);
+
+  const statusText = error ? "Failed" : noChanges ? "No Changes" : "Success";
+  const statusColor = error
+    ? Color.Red
+    : noChanges
+      ? Color.Orange
+      : Color.Green;
 
   return (
     <Detail
@@ -65,8 +74,8 @@ export function DeployResultView({
           {branch && <Detail.Metadata.Label title="Branch" text={branch} />}
           <Detail.Metadata.TagList title="Status">
             <Detail.Metadata.TagList.Item
-              text={error ? "Failed" : "Success"}
-              color={error ? Color.Red : Color.Green}
+              text={statusText}
+              color={statusColor}
             />
           </Detail.Metadata.TagList>
           <Detail.Metadata.Separator />
@@ -117,16 +126,22 @@ export async function executeDeploy(
       results.push(result);
     }
 
-    const slackMessage = buildSlackMessage(service.name, results);
-    if (slackMessage) {
-      await Clipboard.copy(slackMessage);
+    if (hasNoChanges(results)) {
       toast.style = Toast.Style.Success;
-      toast.title = "Deployed — PR links copied to clipboard";
-      toast.message = slackMessage;
+      toast.title = `No changes to deploy`;
+      toast.message = `${service.name} — ${stages.join(", ")}`;
     } else {
-      toast.style = Toast.Style.Success;
-      toast.title = `Deployed ${service.name}`;
-      toast.message = stages.join(", ");
+      const slackMessage = buildSlackMessage(service.name, results);
+      if (slackMessage) {
+        await Clipboard.copy(slackMessage);
+        toast.style = Toast.Style.Success;
+        toast.title = "Deployed — PR links copied to clipboard";
+        toast.message = slackMessage;
+      } else {
+        toast.style = Toast.Style.Success;
+        toast.title = `Deployed ${service.name}`;
+        toast.message = stages.join(", ");
+      }
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

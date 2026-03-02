@@ -11,7 +11,7 @@ import {
 import { usePromise } from "@raycast/utils";
 import { getDeployHistory } from "./lib/storage";
 import { DeployResultView } from "./deploy-form";
-import { DeployHistoryEntry } from "./types";
+import { DeployHistoryEntry, hasNoChanges } from "./types";
 
 function formatRelativeTime(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -42,17 +42,33 @@ export default function DeployHistory() {
       />
       {history.map((entry) => {
         const prLinks = getPrLinks(entry);
+        const noChanges = !entry.error && hasNoChanges(entry.results);
+        const statusText = entry.error
+          ? "Failed"
+          : noChanges
+            ? "No Changes"
+            : "Success";
+        const statusColor = entry.error
+          ? Color.Red
+          : noChanges
+            ? Color.Orange
+            : Color.Green;
+        const icon = entry.error
+          ? Icon.XMarkCircle
+          : noChanges
+            ? Icon.Minus
+            : Icon.CheckCircle;
         return (
           <List.Item
             key={entry.id}
             title={entry.serviceName}
             subtitle={entry.target}
-            icon={entry.error ? Icon.XMarkCircle : Icon.CheckCircle}
+            icon={icon}
             accessories={[
               {
                 tag: {
-                  value: entry.error ? "Failed" : "Success",
-                  color: entry.error ? Color.Red : Color.Green,
+                  value: statusText,
+                  color: statusColor,
                 },
               },
               ...(prLinks.length > 0
