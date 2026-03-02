@@ -134,14 +134,14 @@ export async function executeDeploy(
     toast.title = "Deployment failed";
     toast.message = msg;
     await saveDeployToHistory({
-      id: crypto.randomUUID(),
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       serviceName: service.name,
       repoName,
       target,
       timestamp: Date.now(),
       results,
       error: msg,
-    });
+    }).catch(() => {});
     push(
       <DeployResultView
         serviceName={service.name}
@@ -153,13 +153,13 @@ export async function executeDeploy(
   }
 
   await saveDeployToHistory({
-    id: crypto.randomUUID(),
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     serviceName: service.name,
     repoName,
     target,
     timestamp: Date.now(),
     results,
-  });
+  }).catch(() => {});
   push(<DeployResultView serviceName={service.name} results={results} />);
 }
 
