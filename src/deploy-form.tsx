@@ -9,12 +9,17 @@ import {
   getPreferenceValues,
   Detail,
   useNavigation,
+  Icon,
 } from "@raycast/api";
 import { usePromise } from "@raycast/utils";
 import { join } from "path";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchAssignedTickets, LinearTicket } from "./lib/linear";
-import { deploySingle, gitCheckoutMainAndPull, detectTicketId } from "./lib/sdc";
+import {
+  deploySingle,
+  gitCheckoutMainAndPull,
+  detectTicketId,
+} from "./lib/sdc";
 import { buildSlackMessage } from "./lib/slack";
 import { saveDeployToHistory } from "./lib/storage";
 import {
@@ -111,83 +116,176 @@ export function DeployResultView({
   );
 }
 
-export async function executeDeploy(
-  service: ServiceInfo,
-  target: DeployTarget,
-  repoPath: string,
-  repoName: string,
-  push: (view: React.ReactNode) => void,
-  ticket?: string,
-) {
-  const stages = STAGES_FOR_TARGET[target];
-  const toast = await showToast({
-    style: Toast.Style.Animated,
-    title: `Deploying ${service.name}...`,
-  });
-  const results: DeployResult[] = [];
+export function LiveDeployView({
+  serviceName,
+  stages,
+  repoPath,
+  repoName,
+  target,
+  ticket,
+}: {
+  serviceName: string;
+  stages: readonly string[];
+  repoPath: string;
+  repoName: string;
+  target: DeployTarget;
+  ticket?: string;
+}) {
+  const [results, setResults] = useState<DeployResult[]>([]);
+  const [error, setError] = useState<string | undefined>();
+  const [currentStage, setCurrentStage] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const didStart = useRef(false);
 
-  try {
-    if (requiresMainBranch(target)) {
-      toast.message = "Checking out main...";
-      await gitCheckoutMainAndPull(repoPath);
-    }
-
-    for (const stage of stages) {
-      toast.message = `Deploying to ${stage}...`;
-      const result = await deploySingle(service.name, stage, repoPath, ticket);
-      results.push(result);
-    }
-
-    if (hasNoChanges(results)) {
-      toast.style = Toast.Style.Success;
-      toast.title = `No changes to deploy`;
-      toast.message = `${service.name} — ${stages.join(", ")}`;
-    } else {
-      const slackMessage = buildSlackMessage(service.name, results);
-      if (slackMessage) {
-        await Clipboard.copy(slackMessage);
-        toast.style = Toast.Style.Success;
-        toast.title = "Deployed — PR links copied to clipboard";
-        toast.message = slackMessage;
-      } else {
-        toast.style = Toast.Style.Success;
-        toast.title = `Deployed ${service.name}`;
-        toast.message = stages.join(", ");
+  const runDeploy = useCallback(async () => {
+    const collected: DeployResult[] = [];
+    try {
+      if (requiresMainBranch(target)) {
+        setCurrentStage("git checkout main");
+        await gitCheckoutMainAndPull(repoPath);
       }
+
+      for (const stage of stages) {
+        setCurrentStage(stage);
+        const result = await deploySingle(serviceName, stage, repoPath, ticket);
+        collected.push(result);
+        setResults([...collected]);
+      }
+
+      if (!hasNoChanges(collected)) {
+        const slackMessage = buildSlackMessage(serviceName, collected);
+        if (slackMessage) {
+          await Clipboard.copy(slackMessage);
+          await showToast({
+            style: Toast.Style.Success,
+            title: "Deployed — PR links copied to clipboard",
+          });
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      await saveDeployToHistory({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        serviceName,
+        repoName,
+        target,
+        timestamp: Date.now(),
+        results: collected,
+        error: msg,
+      }).catch(() => {});
+      setCurrentStage(null);
+      setDone(true);
+      return;
     }
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    toast.style = Toast.Style.Failure;
-    toast.title = "Deployment failed";
-    toast.message = msg;
+
     await saveDeployToHistory({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      serviceName: service.name,
+      serviceName,
       repoName,
       target,
       timestamp: Date.now(),
-      results,
-      error: msg,
+      results: collected,
     }).catch(() => {});
-    push(
-      <DeployResultView
-        serviceName={service.name}
-        results={results}
-        error={msg}
-      />,
-    );
-    return;
-  }
+    setCurrentStage(null);
+    setDone(true);
+  }, [serviceName, stages, repoPath, repoName, target, ticket]);
 
-  await saveDeployToHistory({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-    serviceName: service.name,
-    repoName,
-    target,
-    timestamp: Date.now(),
-    results,
-  }).catch(() => {});
-  push(<DeployResultView serviceName={service.name} results={results} />);
+  useEffect(() => {
+    if (didStart.current) return;
+    didStart.current = true;
+    runDeploy();
+  }, [runDeploy]);
+
+  const isDeploying = !done;
+  const completedStages = new Set(results.map((r) => r.stage));
+  const noChanges = done && !error && hasNoChanges(results);
+  const statusText = !done
+    ? "Deploying"
+    : error
+      ? "Failed"
+      : noChanges
+        ? "No Changes"
+        : "Success";
+  const statusColor = !done
+    ? Color.Blue
+    : error
+      ? Color.Red
+      : noChanges
+        ? Color.Orange
+        : Color.Green;
+
+  const prLinks = results
+    .filter((r) => r.prUrl)
+    .map((r) => ({ stage: r.stage, url: r.prUrl as string }));
+  const branch = results.find((r) => r.branch)?.branch ?? null;
+  const slackMessage = done ? buildSlackMessage(serviceName, results) : null;
+
+  return (
+    <Detail
+      isLoading={isDeploying}
+      navigationTitle={`Deploy: ${serviceName}`}
+      markdown={buildResultMarkdown(results, error)}
+      actions={
+        slackMessage ? (
+          <ActionPanel>
+            <Action.CopyToClipboard
+              title="Copy Slack Message"
+              content={slackMessage}
+            />
+          </ActionPanel>
+        ) : undefined
+      }
+      metadata={
+        <Detail.Metadata>
+          <Detail.Metadata.Label title="Service" text={serviceName} />
+          {branch && <Detail.Metadata.Label title="Branch" text={branch} />}
+          <Detail.Metadata.TagList title="Status">
+            <Detail.Metadata.TagList.Item
+              text={statusText}
+              color={statusColor}
+            />
+          </Detail.Metadata.TagList>
+          <Detail.Metadata.Separator />
+          <Detail.Metadata.TagList title="Stages">
+            {stages.map((s) => (
+              <Detail.Metadata.TagList.Item
+                key={s}
+                text={s}
+                color={
+                  completedStages.has(s)
+                    ? error &&
+                      s === results[results.length - 1]?.stage &&
+                      results.length < stages.length
+                      ? Color.Red
+                      : Color.Green
+                    : s === currentStage
+                      ? Color.Blue
+                      : Color.SecondaryText
+                }
+                icon={
+                  completedStages.has(s)
+                    ? Icon.Checkmark
+                    : s === currentStage
+                      ? Icon.Clock
+                      : undefined
+                }
+              />
+            ))}
+          </Detail.Metadata.TagList>
+          {prLinks.length > 0 && <Detail.Metadata.Separator />}
+          {prLinks.map((pr) => (
+            <Detail.Metadata.Link
+              key={pr.stage}
+              title={pr.stage}
+              target={pr.url}
+              text="PR"
+            />
+          ))}
+        </Detail.Metadata>
+      }
+    />
+  );
 }
 
 export function DeployForm({
@@ -203,7 +301,6 @@ export function DeployForm({
 
   const { data: tickets = [] } = usePromise(fetchAssignedTickets);
   const { data: detectedTicket } = usePromise(() => detectTicketId(repoPath));
-  const [isDeploying, setIsDeploying] = useState(false);
   const [ticketSource, setTicketSource] = useState("assigned");
   const [manualTicketError, setManualTicketError] = useState<
     string | undefined
@@ -247,19 +344,24 @@ export function DeployForm({
     return trimmed;
   }
 
-  async function handleDeploy(
+  function handleDeploy(
     target: DeployTarget,
     values: { ticket: string; manualTicket?: string },
   ) {
     const ticket = resolveTicket(values);
     if (!ticket) return;
 
-    setIsDeploying(true);
-    try {
-      await executeDeploy(service, target, repoPath, repoName, push, ticket);
-    } finally {
-      setIsDeploying(false);
-    }
+    const stages = STAGES_FOR_TARGET[target];
+    push(
+      <LiveDeployView
+        serviceName={service.name}
+        stages={stages}
+        repoPath={repoPath}
+        repoName={repoName}
+        target={target}
+        ticket={ticket}
+      />,
+    );
   }
 
   function validateManualTicket(value: string | undefined): string | undefined {
@@ -272,7 +374,6 @@ export function DeployForm({
 
   return (
     <Form
-      isLoading={isDeploying}
       navigationTitle={`Deploy ${service.name}`}
       actions={
         <ActionPanel>

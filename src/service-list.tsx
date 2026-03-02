@@ -14,8 +14,13 @@ import { usePromise } from "@raycast/utils";
 import { join } from "path";
 import { discoverServices } from "./lib/services";
 import { setServiceOverride, removeServiceOverride } from "./lib/storage";
-import { DeployTarget, Preferences, ServiceInfo } from "./types";
-import { DeployForm, executeDeploy } from "./deploy-form";
+import {
+  DeployTarget,
+  Preferences,
+  ServiceInfo,
+  STAGES_FOR_TARGET,
+} from "./types";
+import { DeployForm, LiveDeployView } from "./deploy-form";
 
 function RenameForm({
   repoName,
@@ -84,7 +89,15 @@ export function ServiceList({ repoName }: { repoName: string }) {
   }
 
   function handleQuickDeploy(svc: ServiceInfo, target: DeployTarget) {
-    executeDeploy(svc, target, repoPath, repoName, push);
+    push(
+      <LiveDeployView
+        serviceName={svc.name}
+        stages={STAGES_FOR_TARGET[target]}
+        repoPath={repoPath}
+        repoName={repoName}
+        target={target}
+      />,
+    );
   }
 
   return (

@@ -46,12 +46,20 @@ export function extractTicketId(text: string): string | null {
 }
 
 export async function getCurrentBranch(repoPath: string): Promise<string> {
-  const { stdout } = await execInRepo("git", ["branch", "--show-current"], repoPath);
+  const { stdout } = await execInRepo(
+    "git",
+    ["branch", "--show-current"],
+    repoPath,
+  );
   return stdout.trim();
 }
 
 export async function getLastCommitMessage(repoPath: string): Promise<string> {
-  const { stdout } = await execInRepo("git", ["log", "--format=%s", "-1"], repoPath);
+  const { stdout } = await execInRepo(
+    "git",
+    ["log", "--format=%s", "-1"],
+    repoPath,
+  );
   return stdout.trim();
 }
 

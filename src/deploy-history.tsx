@@ -25,9 +25,7 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 function getPrLinks(entry: DeployHistoryEntry): string[] {
-  return entry.results
-    .filter((r) => r.prUrl)
-    .map((r) => r.prUrl as string);
+  return entry.results.filter((r) => r.prUrl).map((r) => r.prUrl as string);
 }
 
 export default function DeployHistory() {
@@ -72,7 +70,12 @@ export default function DeployHistory() {
                 },
               },
               ...(prLinks.length > 0
-                ? [{ icon: Icon.Link, text: `${prLinks.length} PR${prLinks.length > 1 ? "s" : ""}` }]
+                ? [
+                    {
+                      icon: Icon.Link,
+                      text: `${prLinks.length} PR${prLinks.length > 1 ? "s" : ""}`,
+                    },
+                  ]
                 : []),
               { text: entry.repoName },
               { text: formatRelativeTime(entry.timestamp) },
