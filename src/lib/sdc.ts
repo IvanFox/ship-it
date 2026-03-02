@@ -6,7 +6,8 @@ import { DeployResult, Preferences } from "../types";
 const execFileAsync = promisify(execFile);
 
 const SHELL_PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
-const PR_URL_REGEX = /https:\/\/github\.com\/[^\s]+\/pull\/\d+/;
+const K8S_PR_URL_REGEX = /https:\/\/github\.com\/[^\s]*kubernetes\/pull\/\d+/g;
+const BRANCH_REGEX = /from branch\s*:\s*(\S+)/;
 
 function getSdcPath(): string {
   const prefs = getPreferenceValues<Preferences>();
@@ -26,8 +27,13 @@ async function execInRepo(
 }
 
 export function parsePrUrl(stdout: string): string | null {
-  const match = stdout.match(PR_URL_REGEX);
-  return match ? match[0] : null;
+  const matches = stdout.match(K8S_PR_URL_REGEX);
+  return matches?.[0] ?? null;
+}
+
+export function parseBranch(stdout: string): string | null {
+  const match = stdout.match(BRANCH_REGEX);
+  return match?.[1] ?? null;
 }
 
 export async function gitCheckoutMainAndPull(repoPath: string): Promise<void> {
@@ -47,10 +53,13 @@ export async function deploySingle(
     args.push("-t", ticket);
   }
   const { stdout } = await execInRepo(sdcPath, args, repoPath);
+  const prUrl = parsePrUrl(stdout);
+  const branch = parseBranch(stdout);
 
   return {
     stage,
-    prUrl: parsePrUrl(stdout),
+    prUrl,
+    branch,
     stdout,
   };
 }

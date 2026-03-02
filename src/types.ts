@@ -10,6 +10,7 @@ export interface ServiceInfo {
 export interface DeployResult {
   stage: string;
   prUrl: string | null;
+  branch: string | null;
   stdout: string;
 }
 

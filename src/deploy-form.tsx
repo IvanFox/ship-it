@@ -48,10 +48,11 @@ function DeployResultView({
   results: DeployResult[];
   error?: string;
 }) {
-  const prUrls = results
+  const prLinks = results
     .filter((r) => r.prUrl)
     .map((r) => ({ stage: r.stage, url: r.prUrl as string }));
   const stages = results.map((r) => r.stage);
+  const branch = results.find((r) => r.branch)?.branch ?? null;
 
   return (
     <Detail
@@ -60,6 +61,9 @@ function DeployResultView({
       metadata={
         <Detail.Metadata>
           <Detail.Metadata.Label title="Service" text={serviceName} />
+          {branch && (
+            <Detail.Metadata.Label title="Branch" text={branch} />
+          )}
           <Detail.Metadata.TagList title="Status">
             <Detail.Metadata.TagList.Item
               text={error ? "Failed" : "Success"}
@@ -72,10 +76,10 @@ function DeployResultView({
               <Detail.Metadata.TagList.Item key={s} text={s} />
             ))}
           </Detail.Metadata.TagList>
-          {prUrls.length > 0 && <Detail.Metadata.Separator />}
-          {prUrls.map((pr) => (
+          {prLinks.length > 0 && <Detail.Metadata.Separator />}
+          {prLinks.map((pr) => (
             <Detail.Metadata.Link
-              key={pr.url}
+              key={pr.stage}
               title={pr.stage}
               target={pr.url}
               text="PR"
@@ -156,13 +160,18 @@ export function DeployForm({
   const { data: tickets = [] } = usePromise(fetchAssignedTickets);
   const [isDeploying, setIsDeploying] = useState(false);
   const [ticketSource, setTicketSource] = useState("assigned");
-  const [manualTicketError, setManualTicketError] = useState<string | undefined>();
+  const [manualTicketError, setManualTicketError] = useState<
+    string | undefined
+  >();
 
   const MANUAL_ENTRY = "__manual__";
   const isManual = ticketSource === MANUAL_ENTRY;
   const TICKET_PATTERN = /^[A-Za-z]{1,5}-\d{1,6}$/;
 
-  function resolveTicket(values: { ticket: string; manualTicket?: string }): string | null {
+  function resolveTicket(values: {
+    ticket: string;
+    manualTicket?: string;
+  }): string | null {
     const raw = isManual ? (values.manualTicket ?? "") : values.ticket;
     const trimmed = raw.trim().toUpperCase();
     if (!trimmed) {
@@ -170,13 +179,20 @@ export function DeployForm({
       return null;
     }
     if (!TICKET_PATTERN.test(trimmed)) {
-      showToast({ style: Toast.Style.Failure, title: "Invalid ticket format", message: "Expected format: ABC-123" });
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Invalid ticket format",
+        message: "Expected format: ABC-123",
+      });
       return null;
     }
     return trimmed;
   }
 
-  async function handleDeploy(target: DeployTarget, values: { ticket: string; manualTicket?: string }) {
+  async function handleDeploy(
+    target: DeployTarget,
+    values: { ticket: string; manualTicket?: string },
+  ) {
     const ticket = resolveTicket(values);
     if (!ticket) return;
 
@@ -191,7 +207,8 @@ export function DeployForm({
   function validateManualTicket(value: string | undefined): string | undefined {
     const v = (value ?? "").trim();
     if (!v) return "Ticket is required";
-    if (!TICKET_PATTERN.test(v)) return "Expected format: ABC-123 (up to 5 letters, up to 6 digits)";
+    if (!TICKET_PATTERN.test(v))
+      return "Expected format: ABC-123 (up to 5 letters, up to 6 digits)";
     return undefined;
   }
 
@@ -254,7 +271,9 @@ export function DeployForm({
           placeholder="ENG-123"
           error={manualTicketError}
           onChange={(v) => setManualTicketError(validateManualTicket(v))}
-          onBlur={(e) => setManualTicketError(validateManualTicket(e.target.value ?? ""))}
+          onBlur={(e) =>
+            setManualTicketError(validateManualTicket(e.target.value ?? ""))
+          }
         />
       )}
     </Form>
